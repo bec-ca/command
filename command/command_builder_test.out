@@ -1,0 +1,179 @@
+================================================================================
+Test: args
+test 1
+args: ''
+()
+()
+false
+()
+()
+exit_code=0
+
+test 2
+args: '--str string'
+(string)
+()
+false
+()
+()
+exit_code=0
+
+test 3
+args: '--int 123'
+()
+(123)
+false
+()
+()
+exit_code=0
+
+test 4
+args: '--bool'
+()
+()
+true
+()
+()
+exit_code=0
+
+test 5
+args: '--str'
+No arguments for flag --str
+Accepted flags:
+    <asflag>
+    <aiflag>
+    --str
+    --int
+    --bool
+exit_code=1
+
+test 6
+args: '--int abc'
+Failed to parse flag --int with value 'abc': Not a numerical value
+Accepted flags:
+    <asflag>
+    <aiflag>
+    --str
+    --int
+    --bool
+exit_code=1
+
+test 7
+args: '--int 123a'
+()
+(123)
+false
+()
+()
+exit_code=0
+
+test 8
+args: '--bool --int 123 --str yo'
+(yo)
+(123)
+true
+()
+()
+exit_code=0
+
+test 9
+args: 'anon'
+()
+()
+false
+(anon)
+()
+exit_code=0
+
+test 10
+args: 'anon anon'
+Failed to parse anon flag with value 'anon': Not a numerical value
+Accepted flags:
+    <asflag>
+    <aiflag>
+    --str
+    --int
+    --bool
+exit_code=1
+
+test 11
+args: 'anon 123'
+()
+()
+false
+(anon)
+(123)
+exit_code=0
+
+
+================================================================================
+Test: required_args
+test 1
+args: ''
+Flag --filename is required, but not provided
+Accepted flags:
+    --str
+    --filename
+exit_code=1
+------------------------------------
+test 2
+args: '--str string'
+Flag --filename is required, but not provided
+Accepted flags:
+    --str
+    --filename
+exit_code=1
+------------------------------------
+test 3
+args: '--filename foobat.txt'
+oflag:() rflag:foobat.txt
+exit_code=0
+------------------------------------
+test 4
+args: '--filename foobat.txt --str value'
+oflag:(value) rflag:foobat.txt
+exit_code=0
+------------------------------------
+
+================================================================================
+Test: optional_with_default
+test 1
+args: ''
+flag1:foobar flag2:()
+exit_code=0
+------------------------------------
+test 2
+args: '--flag foo'
+flag1:foo flag2:()
+exit_code=0
+------------------------------------
+test 3
+args: '--other bar'
+flag1:foobar flag2:(bar)
+exit_code=0
+------------------------------------
+test 4
+args: '--flag bar --other foo'
+flag1:bar flag2:(foo)
+exit_code=0
+------------------------------------
+
+================================================================================
+Test: required_anon
+test 1
+args: ''
+Anon flag is required, but not provided
+Accepted flags:
+exit_code=1
+------------------------------------
+test 2
+args: 'foobat.txt'
+rflag:foobat.txt oflag:()
+exit_code=0
+------------------------------------
+test 3
+args: 'foobat.txt value'
+rflag:foobat.txt oflag:(value)
+exit_code=0
+------------------------------------
+

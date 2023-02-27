@@ -1,0 +1,62 @@
+cpp_library:
+  name: cmd
+  sources: cmd.cpp
+  headers: cmd.hpp
+  libs: command_base
+
+cpp_library:
+  name: command_base
+  sources: command_base.cpp
+  headers: command_base.hpp
+
+cpp_library:
+  name: command_builder
+  sources: command_builder.cpp
+  headers: command_builder.hpp
+  libs:
+    /bee/error
+    /bee/string_util
+    /bee/util
+    cmd
+    command_base
+    command_flags
+
+cpp_test:
+  name: command_builder_test
+  sources: command_builder_test.cpp
+  libs:
+    /bee/format_optional
+    /bee/format_vector
+    /bee/testing
+    command_base
+    command_builder
+  output: command_builder_test.out
+
+cpp_library:
+  name: command_flags
+  sources: command_flags.cpp
+  headers: command_flags.hpp
+  libs: /bee/error
+
+cpp_library:
+  name: group_builder
+  sources: group_builder.cpp
+  headers: group_builder.hpp
+  libs:
+    /bee/string_util
+    cmd
+    command_base
+    command_builder
+
+cpp_test:
+  name: group_builder_test
+  sources: group_builder_test.cpp
+  libs:
+    /bee/error
+    /bee/format
+    /bee/format_optional
+    /bee/testing
+    command_builder
+    group_builder
+  output: group_builder_test.out
+
