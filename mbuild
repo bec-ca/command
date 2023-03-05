@@ -28,3 +28,6 @@ profile:
     -pthread
     -lpthread
 
+external_package:
+  name: bee
+  url: https://github.com/bec-ca/bee/archive/refs/tags/v1.0.0.tar.gz
