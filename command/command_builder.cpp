@@ -21,6 +21,11 @@ using std::vector;
 namespace command {
 namespace {
 
+string make_doc(const Flag& flag)
+{
+  return visit([&](auto flag) -> string { return flag->make_doc(); }, flag);
+}
+
 const string& flag_name(const Flag& flag)
 {
   return visit([&](auto flag) -> const string& { return flag->name(); }, flag);
@@ -159,12 +164,10 @@ struct Command : public CommandBase {
   void print_help() const
   {
     print_line("Accepted flags:");
-    if (!_flags.empty()) {
-      for (const auto& flag : _anon_flags) {
-        print_line("    <$>", flag->doc());
-      }
-      for (const auto& flag : _flags) { print_line("    $", flag_name(flag)); }
+    for (const auto& flag : _anon_flags) {
+      print_line("    $", flag->make_doc());
     }
+    for (const auto& flag : _flags) { print_line("    $", make_doc(flag)); }
   }
 
  private:
@@ -183,9 +186,10 @@ CommandBuilder::CommandBuilder(const string& description)
     : _description(description)
 {}
 
-FlagWrapper<BooleanFlag> CommandBuilder::no_arg(const std::string& name)
+FlagWrapper<BooleanFlag> CommandBuilder::no_arg(
+  const std::string& name, const opt_str& doc)
 {
-  auto flag = BooleanFlag::create(name);
+  auto flag = BooleanFlag::create(name, doc);
   _flags.push_back(flag);
   return wrap_flag(flag);
 }

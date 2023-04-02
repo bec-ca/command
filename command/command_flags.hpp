@@ -6,13 +6,16 @@
 
 namespace command {
 
+using opt_str = std::optional<std::string>;
+
 struct AnonFlag {
  public:
   using ptr = std::shared_ptr<AnonFlag>;
 
-  explicit AnonFlag(const std::string& doc) : _doc(doc) {}
-
-  explicit AnonFlag(){};
+  explicit AnonFlag(
+    const opt_str& value_name, const opt_str& doc, bool required)
+      : _value_name(value_name), _doc(doc), _required(required)
+  {}
 
   virtual ~AnonFlag(){};
 
@@ -20,10 +23,14 @@ struct AnonFlag {
 
   virtual bee::OrError<bee::Unit> finish_parsing() const = 0;
 
-  const std::string& doc() const { return _doc; }
+  std::string make_doc() const;
+
+  bool is_required() const { return _required; }
 
  private:
-  const std::string _doc;
+  const opt_str _value_name;
+  const opt_str _doc;
+  const bool _required;
 };
 
 template <class P, class F> struct AnonFlagBase : public AnonFlag {
@@ -35,21 +42,31 @@ template <class P, class F> struct AnonFlagBase : public AnonFlag {
 
   const std::optional<value_type>& value() const { return _value; }
 
-  static ptr create(const P& spec, const std::string& doc)
+  static ptr create(
+    const P& spec, const opt_str& value_name, const opt_str& doc)
   {
-    return std::make_shared<F>(spec, doc);
+    return std::make_shared<F>(spec, value_name, doc);
   }
 
-  virtual bee::OrError<bee::Unit> parse_value(const std::string& value)
+  virtual bee::OrError<bee::Unit> parse_value(const std::string& value) override
   {
     bail(parsed_value, _spec(value));
     _value = parsed_value;
     return bee::unit;
   }
 
+  virtual bee::OrError<bee::Unit> finish_parsing() const override
+  {
+    if (is_required() && !_value.has_value()) {
+      return bee::Error::format("Anon flag is required, but not provided");
+    }
+    return bee::unit;
+  }
+
  protected:
-  explicit AnonFlagBase(const P& spec, const std::string& doc)
-      : AnonFlag(doc), _spec(spec)
+  explicit AnonFlagBase(
+    const P& spec, const opt_str& value_name, const opt_str& doc, bool required)
+      : AnonFlag(value_name, doc, required), _spec(spec)
   {}
 
  private:
@@ -64,10 +81,9 @@ struct AnonFlagTemplate : public AnonFlagBase<P, AnonFlagTemplate<P>> {
 
   virtual ~AnonFlagTemplate() {}
 
-  virtual bee::OrError<bee::Unit> finish_parsing() const { return bee::unit; }
-
-  explicit AnonFlagTemplate(const P& spec, const std::string& doc)
-      : parent(spec, doc)
+  explicit AnonFlagTemplate(
+    const P& spec, const opt_str& value_name, const opt_str& doc)
+      : parent(spec, value_name, doc, false)
   {}
 };
 
@@ -79,40 +95,36 @@ struct RequiredAnonFlagTemplate
 
   virtual ~RequiredAnonFlagTemplate() {}
 
-  virtual bee::OrError<bee::Unit> finish_parsing() const
-  {
-    if (!parent::value().has_value()) {
-      return bee::Error::format("Anon flag is required, but not provided");
-    }
-    return bee::unit;
-  }
-
   const typename P::value_type& value() const { return *parent::value(); }
 
-  explicit RequiredAnonFlagTemplate(const P& spec, const std::string& doc)
-      : parent(spec, doc)
+  explicit RequiredAnonFlagTemplate(
+    const P& spec, const opt_str& value_name, const opt_str& doc)
+      : parent(spec, value_name, doc, true)
   {}
 };
 
 struct NamedFlag {
  public:
-  explicit NamedFlag(const std::string& name);
+  explicit NamedFlag(const std::string& name, const opt_str& doc);
 
   virtual ~NamedFlag();
 
   const std::string& name() const;
 
+  std::string doc() const;
+
+  virtual std::string make_doc() const = 0;
+
  private:
-  std::string _name;
+  const std::string _name;
+  const opt_str _doc;
 };
 
 struct BooleanFlag : public NamedFlag {
  public:
   using ptr = std::shared_ptr<BooleanFlag>;
 
-  explicit BooleanFlag(const std::string& name);
-
-  static ptr create(const std::string& name);
+  static ptr create(const std::string& name, const opt_str& doc);
 
   virtual ~BooleanFlag();
 
@@ -120,7 +132,11 @@ struct BooleanFlag : public NamedFlag {
 
   const bool& value() const;
 
+  virtual std::string make_doc() const override;
+
  private:
+  explicit BooleanFlag(const std::string& name, const opt_str& doc);
+
   bool _value;
 };
 
@@ -128,13 +144,25 @@ struct ValueFlag : public NamedFlag {
  public:
   using ptr = std::shared_ptr<ValueFlag>;
 
-  explicit ValueFlag(const std::string& name);
+  explicit ValueFlag(
+    const std::string& name,
+    const opt_str& value_name,
+    const opt_str& doc,
+    bool required);
 
   virtual ~ValueFlag();
 
   virtual bee::OrError<bee::Unit> parse_value(const std::string& value) = 0;
 
   virtual bee::OrError<bee::Unit> finish_parsing() const = 0;
+
+  virtual std::string make_doc() const override;
+
+  bool is_required() const { return _required; }
+
+ private:
+  const opt_str _value_name;
+  const bool _required;
 };
 
 template <class P> struct FlagTemplate : public ValueFlag {
@@ -142,28 +170,42 @@ template <class P> struct FlagTemplate : public ValueFlag {
   using value_type = typename P::value_type;
   using ptr = std::shared_ptr<FlagTemplate>;
 
-  static ptr create(const std::string& name, const P& spec)
+  static ptr create(
+    const std::string& name,
+    const P& spec,
+    const opt_str& value_name,
+    const opt_str& doc)
   {
-    return ptr(new FlagTemplate(name, spec));
+    return ptr(new FlagTemplate(name, spec, value_name, doc, std::nullopt));
   }
 
   const std::optional<value_type>& value() const { return _value; }
 
-  virtual bee::OrError<bee::Unit> parse_value(const std::string& value)
+  virtual bee::OrError<bee::Unit> parse_value(const std::string& value) override
   {
     bail(parsed_value, _spec(value));
     _value = std::move(parsed_value);
     return bee::unit;
   };
 
-  virtual bee::OrError<bee::Unit> finish_parsing() const { return bee::unit; }
+  virtual bee::OrError<bee::Unit> finish_parsing() const override
+  {
+    if (is_required() && !_value.has_value()) {
+      return bee::Error::format(
+        "Flag $ is required, but not provided", this->name());
+    }
+    return bee::unit;
+  }
 
  protected:
   explicit FlagTemplate(
     const std::string& name,
     const P& spec,
-    const std::optional<value_type>& def = std::nullopt)
-      : ValueFlag(name), _spec(spec), _value(def)
+    const opt_str& value_name,
+    const opt_str& doc,
+    const std::optional<value_type>& def,
+    bool required = false)
+      : ValueFlag(name, value_name, doc, required), _spec(spec), _value(def)
   {}
 
  private:
@@ -178,9 +220,11 @@ template <class P> struct RequiredFlagTemplate : public FlagTemplate<P> {
   static ptr create(
     const std::string& name,
     const P& spec,
+    const opt_str& value_name,
+    const opt_str& doc,
     const std::optional<value_type>& def = std::nullopt)
   {
-    return ptr(new RequiredFlagTemplate(name, spec, def));
+    return ptr(new RequiredFlagTemplate(name, spec, value_name, doc, def));
   }
 
   virtual bee::OrError<bee::Unit> finish_parsing() const
@@ -198,8 +242,10 @@ template <class P> struct RequiredFlagTemplate : public FlagTemplate<P> {
   explicit RequiredFlagTemplate(
     const std::string& name,
     const P& spec,
+    const opt_str& value_name,
+    const opt_str& doc,
     const std::optional<value_type>& def)
-      : FlagTemplate<P>(name, spec, def)
+      : FlagTemplate<P>(name, spec, value_name, doc, def, true)
   {}
 };
 

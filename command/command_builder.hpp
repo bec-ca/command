@@ -35,41 +35,61 @@ struct CommandBuilder {
 
   CommandBuilder(const std::string& description);
 
-  FlagWrapper<BooleanFlag> no_arg(const std::string& name);
+  FlagWrapper<BooleanFlag> no_arg(
+    const std::string& name, const opt_str& doc = std::nullopt);
 
-  template <class S> auto optional(const std::string& name, const S& spec)
+  template <class S>
+  auto optional(
+    const std::string& name,
+    const S& spec,
+    const opt_str& value_name = std::nullopt,
+    const opt_str& doc = std::nullopt)
   {
-    auto flag = FlagTemplate<S>::create(name, spec);
+    auto flag = FlagTemplate<S>::create(name, spec, value_name, doc);
     _flags.push_back(flag);
     return wrap_flag(flag);
   }
 
   template <class S>
   auto optional_with_default(
-    const std::string& name, const S& spec, const typename S::value_type& def)
+    const std::string& name,
+    const S& spec,
+    const typename S::value_type& def,
+    const opt_str& value_name = std::nullopt,
+    const opt_str& doc = std::nullopt)
   {
-    auto flag = RequiredFlagTemplate<S>::create(name, spec, def);
+    auto flag =
+      RequiredFlagTemplate<S>::create(name, spec, value_name, doc, def);
     _flags.push_back(flag);
     return wrap_flag(flag);
   }
 
-  template <class S> auto required(const std::string& name, const S& spec)
+  template <class S>
+  auto required(
+    const std::string& name,
+    const S& spec,
+    const opt_str& value_name = std::nullopt,
+    const opt_str& doc = std::nullopt)
   {
-    auto flag = RequiredFlagTemplate<S>::create(name, spec);
+    auto flag = RequiredFlagTemplate<S>::create(name, spec, value_name, doc);
     _flags.push_back(flag);
     return wrap_flag(flag);
   }
 
-  template <class S> auto anon(const S& spec, const std::string& doc)
+  template <class S>
+  auto anon(
+    const S& spec, const opt_str& value_name, const opt_str& doc = std::nullopt)
   {
-    auto flag = AnonFlagTemplate<S>::create(spec, doc);
+    auto flag = AnonFlagTemplate<S>::create(spec, value_name, doc);
     _anon_flags.push_back(flag);
     return wrap_flag(flag);
   }
 
-  template <class S> auto required_anon(const S& spec, const std::string& doc)
+  template <class S>
+  auto required_anon(
+    const S& spec, const opt_str& value_name, const opt_str& doc = std::nullopt)
   {
-    auto flag = RequiredAnonFlagTemplate<S>::create(spec, doc);
+    auto flag = RequiredAnonFlagTemplate<S>::create(spec, value_name, doc);
     _anon_flags.push_back(flag);
     return wrap_flag(flag);
   }

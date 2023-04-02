@@ -40,22 +40,22 @@ test 5
 args: '--str'
 No arguments for flag --str
 Accepted flags:
-    <asflag>
-    <aiflag>
-    --str
-    --int
-    --bool
+    <[asflag]>
+    <[aiflag]>
+    [--str <_>] 
+    [--int <_>] 
+    --bool 
 exit_code=1
 
 test 6
 args: '--int abc'
 Failed to parse flag --int with value 'abc': Not a numerical value
 Accepted flags:
-    <asflag>
-    <aiflag>
-    --str
-    --int
-    --bool
+    <[asflag]>
+    <[aiflag]>
+    [--str <_>] 
+    [--int <_>] 
+    --bool 
 exit_code=1
 
 test 7
@@ -89,11 +89,11 @@ test 10
 args: 'anon anon'
 Failed to parse anon flag with value 'anon': Not a numerical value
 Accepted flags:
-    <asflag>
-    <aiflag>
-    --str
-    --int
-    --bool
+    <[asflag]>
+    <[aiflag]>
+    [--str <_>] 
+    [--int <_>] 
+    --bool 
 exit_code=1
 
 test 11
@@ -112,16 +112,16 @@ test 1
 args: ''
 Flag --filename is required, but not provided
 Accepted flags:
-    --str
-    --filename
+    [--str <_>] 
+    --filename <_> 
 exit_code=1
 ------------------------------------
 test 2
 args: '--str string'
 Flag --filename is required, but not provided
 Accepted flags:
-    --str
-    --filename
+    [--str <_>] 
+    --filename <_> 
 exit_code=1
 ------------------------------------
 test 3
@@ -164,6 +164,8 @@ test 1
 args: ''
 Anon flag is required, but not provided
 Accepted flags:
+    <rflag>
+    <[oflag]>
 exit_code=1
 ------------------------------------
 test 2
