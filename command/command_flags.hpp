@@ -2,6 +2,8 @@
 
 #include "bee/error.hpp"
 
+#include "flag_spec.hpp"
+
 #include <memory>
 
 namespace command {
@@ -27,6 +29,8 @@ struct AnonFlag {
 
   bool is_required() const { return _required; }
 
+  const opt_str& value_name() const;
+
  private:
   const opt_str _value_name;
   const opt_str _doc;
@@ -50,7 +54,7 @@ template <class P, class F> struct AnonFlagBase : public AnonFlag {
 
   virtual bee::OrError<bee::Unit> parse_value(const std::string& value) override
   {
-    bail(parsed_value, _spec(value));
+    bail(parsed_value, _spec.of_string(value));
     _value = parsed_value;
     return bee::unit;
   }
@@ -58,7 +62,12 @@ template <class P, class F> struct AnonFlagBase : public AnonFlag {
   virtual bee::OrError<bee::Unit> finish_parsing() const override
   {
     if (is_required() && !_value.has_value()) {
-      return bee::Error::format("Anon flag is required, but not provided");
+      if (auto vn = value_name()) {
+        return bee::Error::format(
+          "Anon flag <$> is required, but not provided", *vn);
+      } else {
+        return bee::Error::format("Anon flag is required, but not provided");
+      }
     }
     return bee::unit;
   }
@@ -111,7 +120,7 @@ struct NamedFlag {
 
   const std::string& name() const;
 
-  std::string doc() const;
+  const opt_str& doc() const;
 
   virtual std::string make_doc() const = 0;
 
@@ -160,12 +169,14 @@ struct ValueFlag : public NamedFlag {
 
   bool is_required() const { return _required; }
 
+  virtual opt_str default_str() const = 0;
+
  private:
   const opt_str _value_name;
   const bool _required;
 };
 
-template <class P> struct FlagTemplate : public ValueFlag {
+template <FlagSpec P> struct FlagTemplate : public ValueFlag {
  public:
   using value_type = typename P::value_type;
   using ptr = std::shared_ptr<FlagTemplate>;
@@ -179,22 +190,35 @@ template <class P> struct FlagTemplate : public ValueFlag {
     return ptr(new FlagTemplate(name, spec, value_name, doc, std::nullopt));
   }
 
-  const std::optional<value_type>& value() const { return _value; }
+  const std::optional<value_type>& value() const
+  {
+    if (!_value.has_value()) {
+      return _def;
+    } else {
+      return _value;
+    }
+  }
 
   virtual bee::OrError<bee::Unit> parse_value(const std::string& value) override
   {
-    bail(parsed_value, _spec(value));
-    _value = std::move(parsed_value);
+    bail(parsed_value, _spec.of_string(value));
+    _value.emplace(std::move(parsed_value));
     return bee::unit;
   };
 
   virtual bee::OrError<bee::Unit> finish_parsing() const override
   {
-    if (is_required() && !_value.has_value()) {
+    if (is_required() && !value().has_value()) {
       return bee::Error::format(
         "Flag $ is required, but not provided", this->name());
     }
     return bee::unit;
+  }
+
+  virtual opt_str default_str() const override
+  {
+    if (_def.has_value()) { return _spec.to_string(*_def); }
+    return std::nullopt;
   }
 
  protected:
@@ -205,11 +229,12 @@ template <class P> struct FlagTemplate : public ValueFlag {
     const opt_str& doc,
     const std::optional<value_type>& def,
     bool required = false)
-      : ValueFlag(name, value_name, doc, required), _spec(spec), _value(def)
+      : ValueFlag(name, value_name, doc, required), _spec(spec), _def(def)
   {}
 
  private:
   const P _spec;
+  const std::optional<value_type> _def;
   std::optional<value_type> _value;
 };
 
@@ -227,7 +252,7 @@ template <class P> struct RequiredFlagTemplate : public FlagTemplate<P> {
     return ptr(new RequiredFlagTemplate(name, spec, value_name, doc, def));
   }
 
-  virtual bee::OrError<bee::Unit> finish_parsing() const
+  virtual bee::OrError<bee::Unit> finish_parsing() const override
   {
     if (!FlagTemplate<P>::value().has_value()) {
       return bee::Error::format(
@@ -253,41 +278,27 @@ namespace flags {
 
 struct StringFlag {
   using value_type = std::string;
-  const bee::OrError<value_type> operator()(const std::string& value) const;
-} extern string_flag;
+  bee::OrError<value_type> of_string(const std::string& value) const;
+  std::string to_string(const std::string& value) const;
+};
+
+constexpr StringFlag string_flag;
 
 struct IntFlag {
   using value_type = int;
-  const bee::OrError<value_type> operator()(const std::string& value) const;
-} extern int_flag;
+  bee::OrError<value_type> of_string(const std::string& value) const;
+  std::string to_string(int value) const;
+};
+
+constexpr IntFlag int_flag;
 
 struct FloatFlag {
   using value_type = double;
-  const bee::OrError<value_type> operator()(const std::string& value) const;
-} extern float_flag;
-
-template <class T>
-concept string_parser = requires(std::string str) {
-                          {
-                            T::of_string(str)
-                            } -> std::convertible_to<bee::OrError<T>>;
-                        };
-
-template <class T> struct flag_of_value_type_t {
- public:
-  using value_type = T;
-  const bee::OrError<value_type> operator()(const std::string& value) const
-  {
-    return T::of_string(value);
-  }
+  bee::OrError<value_type> of_string(const std::string& value) const;
+  std::string to_string(float value) const;
 };
 
-template <class T>
-constexpr flag_of_value_type_t<T> flag_of_value_type()
-  requires string_parser<T>
-{
-  return flag_of_value_type_t<T>();
-}
+constexpr FloatFlag float_flag;
 
 } // namespace flags
 

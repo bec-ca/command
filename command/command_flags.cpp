@@ -1,5 +1,7 @@
 #include "command_flags.hpp"
 
+#include <vector>
+
 using std::string;
 
 namespace command {
@@ -10,11 +12,21 @@ namespace command {
 
 std::string AnonFlag::make_doc() const
 {
-  auto value_name = _value_name.has_value() ? *_value_name : "VALUE";
-  auto doc = _doc.has_value() ? bee::format(": $", *_doc) : "";
-  if (!_required) { value_name = bee::format("[$]", value_name); }
-  return bee::format("<$>$", value_name, doc);
+  auto value_name = [&]() {
+    auto value_name =
+      _value_name.has_value() ? bee::format("<$>", *_value_name) : "<VALUE>";
+    if (!_required) {
+      return bee::format("[$]", value_name);
+    } else {
+      return value_name;
+    }
+  };
+  auto doc = value_name();
+  if (_doc.has_value()) { doc = bee::format("$: $", doc, *_doc); }
+  return doc;
 }
+
+const opt_str& AnonFlag::value_name() const { return _value_name; }
 
 ////////////////////////////////////////////////////////////////////////////////
 // NamedFlag
@@ -26,10 +38,7 @@ NamedFlag::NamedFlag(const string& name, const opt_str& doc)
 NamedFlag::~NamedFlag() {}
 
 const string& NamedFlag::name() const { return _name; }
-string NamedFlag::doc() const
-{
-  return _doc.has_value() ? bee::format(" $", *_doc) : "";
-}
+const opt_str& NamedFlag::doc() const { return _doc; }
 
 ////////////////////////////////////////////////////////////////////////////////
 // BooleanFlag
@@ -51,7 +60,12 @@ BooleanFlag::ptr BooleanFlag::create(const string& name, const opt_str& doc)
 
 string BooleanFlag::make_doc() const
 {
-  return bee::format("$ $", name(), doc());
+  auto out = name();
+  if (const auto& d = doc()) {
+    out += ' ';
+    out += *d;
+  }
+  return out;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -70,11 +84,19 @@ ValueFlag::~ValueFlag() {}
 
 string ValueFlag::make_doc() const
 {
-  auto value_name = _value_name.has_value() ? *_value_name : "_";
-  auto name_and_value = bee::format("$ <$>", name(), value_name);
-  name_and_value =
-    is_required() ? name_and_value : bee::format("[$]", name_and_value);
-  return bee::format("$ $", name_and_value, doc());
+  auto value_name =
+    _value_name.has_value() ? bee::format("<$>", *_value_name) : "_";
+  auto name_and_value = bee::format("$ $", name(), value_name);
+  if (!is_required()) { name_and_value = bee::format("[$]", name_and_value); }
+
+  string doc_str;
+  if (const auto& d = doc()) { doc_str = *d; }
+  if (auto def_value = default_str()) {
+    if (!doc_str.empty()) { doc_str += ' '; };
+    doc_str += bee::format("[default = $]", *def_value);
+  }
+  if (!doc_str.empty()) { doc_str = ": " + doc_str; };
+  return name_and_value + doc_str;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -83,14 +105,22 @@ string ValueFlag::make_doc() const
 
 namespace flags {
 
-const bee::OrError<string> StringFlag::operator()(const string& value) const
+////////////////////////////////////////////////////////////////////////////////
+// StringFlag
+//
+
+bee::OrError<string> StringFlag::of_string(const string& value) const
 {
   return value;
 }
 
-StringFlag string_flag;
+std::string StringFlag::to_string(const string& value) const { return value; }
 
-const bee::OrError<int> IntFlag::operator()(const string& value) const
+////////////////////////////////////////////////////////////////////////////////
+// IntFlag
+//
+
+bee::OrError<int> IntFlag::of_string(const string& value) const
 {
   try {
     return stoi(value);
@@ -101,9 +131,13 @@ const bee::OrError<int> IntFlag::operator()(const string& value) const
   }
 }
 
-IntFlag int_flag;
+std::string IntFlag::to_string(int value) const { return bee::format(value); }
 
-const bee::OrError<double> FloatFlag::operator()(const string& value) const
+////////////////////////////////////////////////////////////////////////////////
+// FlagFlag
+//
+
+bee::OrError<double> FloatFlag::of_string(const string& value) const
 {
   try {
     return stod(value);
@@ -114,7 +148,10 @@ const bee::OrError<double> FloatFlag::operator()(const string& value) const
   }
 }
 
-FloatFlag float_flag;
+std::string FloatFlag::to_string(float value) const
+{
+  return bee::format(value);
+}
 
 } // namespace flags
 

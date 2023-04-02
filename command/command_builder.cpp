@@ -1,5 +1,6 @@
 #include "command_builder.hpp"
 
+#include "command/command_flags.hpp"
 #include "command_base.hpp"
 
 #include "bee/error.hpp"
@@ -123,7 +124,10 @@ struct Command : public CommandBase {
         _handler(handler),
         _flags(flags),
         _anon_flags(anon_flags)
-  {}
+  {
+    _show_help = BooleanFlag::create("--help", "Displays this help");
+    _flags.push_back(_show_help);
+  }
 
   Command(Command&& other) = default;
   Command(const Command& other) = delete;
@@ -146,12 +150,18 @@ struct Command : public CommandBase {
   {
     {
       auto err = parse_args(_flags, _anon_flags, args);
+      if (_show_help->value()) {
+        print_help();
+        return 0;
+      }
+
       if (err.is_error()) {
         print_line(err.error());
         print_help();
         return 1;
       }
     }
+
     auto err = _handler();
     if (err.is_error()) {
       print_line(err.error().msg());
@@ -174,6 +184,7 @@ struct Command : public CommandBase {
   handler_type _handler;
   std::vector<Flag> _flags;
   std::vector<AnonFlag::ptr> _anon_flags;
+  BooleanFlag::ptr _show_help;
 };
 
 } // namespace

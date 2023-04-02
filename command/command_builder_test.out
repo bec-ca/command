@@ -10,6 +10,17 @@ false
 exit_code=0
 
 test 2
+args: '--help'
+Accepted flags:
+    [<asflag>]
+    [<aiflag>]
+    [--str _]
+    [--int _]
+    --bool
+    --help Displays this help
+exit_code=0
+
+test 3
 args: '--str string'
 (string)
 ()
@@ -18,7 +29,7 @@ false
 ()
 exit_code=0
 
-test 3
+test 4
 args: '--int 123'
 ()
 (123)
@@ -27,7 +38,7 @@ false
 ()
 exit_code=0
 
-test 4
+test 5
 args: '--bool'
 ()
 ()
@@ -36,29 +47,31 @@ true
 ()
 exit_code=0
 
-test 5
+test 6
 args: '--str'
 No arguments for flag --str
 Accepted flags:
-    <[asflag]>
-    <[aiflag]>
-    [--str <_>] 
-    [--int <_>] 
-    --bool 
-exit_code=1
-
-test 6
-args: '--int abc'
-Failed to parse flag --int with value 'abc': Not a numerical value
-Accepted flags:
-    <[asflag]>
-    <[aiflag]>
-    [--str <_>] 
-    [--int <_>] 
-    --bool 
+    [<asflag>]
+    [<aiflag>]
+    [--str _]
+    [--int _]
+    --bool
+    --help Displays this help
 exit_code=1
 
 test 7
+args: '--int abc'
+Failed to parse flag --int with value 'abc': Not a numerical value
+Accepted flags:
+    [<asflag>]
+    [<aiflag>]
+    [--str _]
+    [--int _]
+    --bool
+    --help Displays this help
+exit_code=1
+
+test 8
 args: '--int 123a'
 ()
 (123)
@@ -67,7 +80,7 @@ false
 ()
 exit_code=0
 
-test 8
+test 9
 args: '--bool --int 123 --str yo'
 (yo)
 (123)
@@ -76,7 +89,7 @@ true
 ()
 exit_code=0
 
-test 9
+test 10
 args: 'anon'
 ()
 ()
@@ -85,18 +98,19 @@ false
 ()
 exit_code=0
 
-test 10
+test 11
 args: 'anon anon'
 Failed to parse anon flag with value 'anon': Not a numerical value
 Accepted flags:
-    <[asflag]>
-    <[aiflag]>
-    [--str <_>] 
-    [--int <_>] 
-    --bool 
+    [<asflag>]
+    [<aiflag>]
+    [--str _]
+    [--int _]
+    --bool
+    --help Displays this help
 exit_code=1
 
-test 11
+test 12
 args: 'anon 123'
 ()
 ()
@@ -112,24 +126,34 @@ test 1
 args: ''
 Flag --filename is required, but not provided
 Accepted flags:
-    [--str <_>] 
-    --filename <_> 
+    [--str _]
+    --filename _
+    --help Displays this help
 exit_code=1
 ------------------------------------
 test 2
+args: '--help'
+Accepted flags:
+    [--str _]
+    --filename _
+    --help Displays this help
+exit_code=0
+------------------------------------
+test 3
 args: '--str string'
 Flag --filename is required, but not provided
 Accepted flags:
-    [--str <_>] 
-    --filename <_> 
+    [--str _]
+    --filename _
+    --help Displays this help
 exit_code=1
 ------------------------------------
-test 3
+test 4
 args: '--filename foobat.txt'
 oflag:() rflag:foobat.txt
 exit_code=0
 ------------------------------------
-test 4
+test 5
 args: '--filename foobat.txt --str value'
 oflag:(value) rflag:foobat.txt
 exit_code=0
@@ -143,16 +167,33 @@ flag1:foobar flag2:()
 exit_code=0
 ------------------------------------
 test 2
+args: '--help'
+Accepted flags:
+    --flag _: [default = foobar]
+    [--other _]
+    --help Displays this help
+exit_code=0
+------------------------------------
+test 3
+args: '--invalid-flag'
+Unknown flag '--invalid-flag'
+Accepted flags:
+    --flag _: [default = foobar]
+    [--other _]
+    --help Displays this help
+exit_code=1
+------------------------------------
+test 4
 args: '--flag foo'
 flag1:foo flag2:()
 exit_code=0
 ------------------------------------
-test 3
+test 5
 args: '--other bar'
 flag1:foobar flag2:(bar)
 exit_code=0
 ------------------------------------
-test 4
+test 6
 args: '--flag bar --other foo'
 flag1:bar flag2:(foo)
 exit_code=0
@@ -162,10 +203,11 @@ exit_code=0
 Test: required_anon
 test 1
 args: ''
-Anon flag is required, but not provided
+Anon flag <rflag> is required, but not provided
 Accepted flags:
     <rflag>
-    <[oflag]>
+    [<oflag>]
+    --help Displays this help
 exit_code=1
 ------------------------------------
 test 2

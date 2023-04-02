@@ -36,6 +36,13 @@ cpp_library:
   name: command_flags
   sources: command_flags.cpp
   headers: command_flags.hpp
+  libs:
+    /bee/error
+    flag_spec
+
+cpp_library:
+  name: flag_spec
+  headers: flag_spec.hpp
   libs: /bee/error
 
 cpp_library:

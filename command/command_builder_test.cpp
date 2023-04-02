@@ -59,25 +59,16 @@ TEST(args)
   };
 
   run_test({});
-
+  run_test({"--help"});
   run_test({"--str", "string"});
-
   run_test({"--int", "123"});
-
   run_test({"--bool"});
-
   run_test({"--str"});
-
   run_test({"--int", "abc"});
-
   run_test({"--int", "123a"});
-
   run_test({"--bool", "--int", "123", "--str", "yo"});
-
   run_test({"anon"});
-
   run_test({"anon", "anon"});
-
   run_test({"anon", "123"});
 }
 
@@ -99,11 +90,9 @@ TEST(required_args)
   };
 
   run_test({});
-
+  run_test({"--help"});
   run_test({"--str", "string"});
-
   run_test({"--filename", "foobat.txt"});
-
   run_test({"--filename", "foobat.txt", "--str", "value"});
 }
 
@@ -125,11 +114,10 @@ TEST(optional_with_default)
   };
 
   run_test({});
-
+  run_test({"--help"});
+  run_test({"--invalid-flag"});
   run_test({"--flag", "foo"});
-
   run_test({"--other", "bar"});
-
   run_test({"--flag", "bar", "--other", "foo"});
 }
 
