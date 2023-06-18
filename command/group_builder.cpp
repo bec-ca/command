@@ -1,14 +1,13 @@
 #include "group_builder.hpp"
 
+#include <string>
+#include <variant>
+
 #include "command_base.hpp"
 #include "command_builder.hpp"
 
 #include "bee/string_util.hpp"
 
-#include <string>
-#include <variant>
-
-using bee::print_line;
 using std::deque;
 using std::map;
 using std::max;
@@ -29,7 +28,7 @@ struct CommandGroup : public CommandBase {
   {
     _add_cmd("help", CommandBuilder("Prints this help").run([&] {
       this->print_help();
-      return bee::unit;
+      return bee::ok();
     }));
   }
 
@@ -37,7 +36,7 @@ struct CommandGroup : public CommandBase {
 
   void print_help() const
   {
-    print_line("Available comands:");
+    P("Available comands:");
 
     size_t longest_name = 0;
     for (const auto& cmd : _handlers) {
@@ -45,8 +44,7 @@ struct CommandGroup : public CommandBase {
     }
 
     for (const auto& cmd : _handlers) {
-      print_line(
-        "  $  $",
+      P("  $  $",
         bee::right_pad_string(cmd.first, longest_name),
         cmd.second.base()->description());
     }
@@ -55,7 +53,7 @@ struct CommandGroup : public CommandBase {
   virtual int execute(std::deque<std::string>&& args) const override
   {
     if (args.empty()) {
-      print_line("No arguments given");
+      P("ERROR: No arguments given\n");
       print_help();
       return 1;
     }
@@ -64,7 +62,7 @@ struct CommandGroup : public CommandBase {
 
     auto it = _handlers.find(cmd);
     if (it == _handlers.end()) {
-      print_line("Unknown command: $", cmd);
+      P("Unknown command: $", cmd);
       print_help();
       return 1;
     } else {

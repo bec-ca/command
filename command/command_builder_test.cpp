@@ -1,12 +1,10 @@
-#include "command_builder.hpp"
-
 #include "command_base.hpp"
+#include "command_builder.hpp"
 
 #include "bee/format_optional.hpp"
 #include "bee/format_vector.hpp"
 #include "bee/testing.hpp"
 
-using bee::print_line;
 using std::deque;
 using std::optional;
 using std::string;
@@ -21,22 +19,22 @@ void run_command(vector<string> args, const Cmd& cmd)
 {
   deque<string> d(args.begin(), args.end());
   int output = cmd.base()->execute(std::move(d));
-  print_line("exit_code=$", output);
+  P("exit_code=$", output);
 }
 
-bee::OrError<bee::Unit> print_flags(
+bee::OrError<> print_flags(
   const optional<string>& sflag,
   const optional<int>& iflag,
   const bool& bflag,
   const optional<string>& asflag,
   const optional<int>& aiflag)
 {
-  print_line(sflag);
-  print_line(iflag);
-  print_line(bflag);
-  print_line(asflag);
-  print_line(aiflag);
-  return bee::unit;
+  P(sflag);
+  P(iflag);
+  P(bflag);
+  P(asflag);
+  P(aiflag);
+  return bee::ok();
 }
 
 TEST(args)
@@ -44,8 +42,8 @@ TEST(args)
   int test_count = 1;
 
   auto run_test = [&](vector<string> args) {
-    print_line("test $", test_count++);
-    print_line("args: '$'", args);
+    P("test $", test_count++);
+    P("args: '$'", args);
     auto builder = CommandBuilder("Sub command");
     auto sflag = builder.optional("--str", string_flag);
     auto iflag = builder.optional("--int", int_flag);
@@ -55,7 +53,7 @@ TEST(args)
     run_command(std::move(args), builder.run([=]() {
       return print_flags(*sflag, *iflag, *bflag, *asflag, *aiflag);
     }));
-    print_line("");
+    P("");
   };
 
   run_test({});
@@ -77,16 +75,16 @@ TEST(required_args)
   int test_count = 1;
 
   auto run_test = [&](vector<string> args) {
-    print_line("test $", test_count++);
-    print_line("args: '$'", args);
+    P("test $", test_count++);
+    P("args: '$'", args);
     auto builder = CommandBuilder("Sub command");
     auto oflag = builder.optional("--str", string_flag);
     auto rflag = builder.required("--filename", string_flag);
     run_command(std::move(args), builder.run([=]() {
-      print_line("oflag:$ rflag:$", *oflag, *rflag);
+      P("oflag:$ rflag:$", *oflag, *rflag);
       return bee::ok();
     }));
-    print_line("------------------------------------");
+    P("------------------------------------");
   };
 
   run_test({});
@@ -101,16 +99,16 @@ TEST(optional_with_default)
   int test_count = 1;
 
   auto run_test = [&](vector<string> args) {
-    print_line("test $", test_count++);
-    print_line("args: '$'", args);
+    P("test $", test_count++);
+    P("args: '$'", args);
     auto builder = CommandBuilder("Sub command");
     auto flag1 = builder.optional_with_default("--flag", string_flag, "foobar");
     auto flag2 = builder.optional("--other", string_flag);
     run_command(std::move(args), builder.run([=]() {
-      print_line("flag1:$ flag2:$", *flag1, *flag2);
+      P("flag1:$ flag2:$", *flag1, *flag2);
       return bee::ok();
     }));
-    print_line("------------------------------------");
+    P("------------------------------------");
   };
 
   run_test({});
@@ -126,22 +124,20 @@ TEST(required_anon)
   int test_count = 1;
 
   auto run_test = [&](vector<string> args) {
-    print_line("test $", test_count++);
-    print_line("args: '$'", args);
+    P("test $", test_count++);
+    P("args: '$'", args);
     auto builder = CommandBuilder("Sub command");
     auto rflag = builder.required_anon(string_flag, "rflag");
     auto oflag = builder.anon(string_flag, "oflag");
     run_command(std::move(args), builder.run([=]() {
-      print_line("rflag:$ oflag:$", *rflag, *oflag);
+      P("rflag:$ oflag:$", *rflag, *oflag);
       return bee::ok();
     }));
-    print_line("------------------------------------");
+    P("------------------------------------");
   };
 
   run_test({});
-
   run_test({"foobat.txt"});
-
   run_test({"foobat.txt", "value"});
 }
 

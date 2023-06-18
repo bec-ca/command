@@ -41,6 +41,13 @@ cpp_library:
     flag_spec
 
 cpp_library:
+  name: file_path
+  headers: file_path.hpp
+  libs:
+    /bee/file_path
+    flag_spec
+
+cpp_library:
   name: flag_spec
   headers: flag_spec.hpp
   libs: /bee/error

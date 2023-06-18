@@ -1,8 +1,8 @@
 #pragma once
 
-#include "bee/error.hpp"
-
 #include <string>
+
+#include "bee/error.hpp"
 
 namespace command {
 

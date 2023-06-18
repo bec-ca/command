@@ -10,20 +10,21 @@ namespace command {
 // AnonFlag
 //
 
-std::string AnonFlag::make_doc() const
+FlagDoc AnonFlag::make_doc() const
 {
   auto value_name = [&]() {
     auto value_name =
-      _value_name.has_value() ? bee::format("<$>", *_value_name) : "<VALUE>";
+      _value_name.has_value() ? F("<$>", *_value_name) : "<VALUE>";
     if (!_required) {
-      return bee::format("[$]", value_name);
+      return F("[$]", value_name);
     } else {
       return value_name;
     }
   };
-  auto doc = value_name();
-  if (_doc.has_value()) { doc = bee::format("$: $", doc, *_doc); }
-  return doc;
+  return {
+    .left = value_name(),
+    .right = _doc,
+  };
 }
 
 const opt_str& AnonFlag::value_name() const { return _value_name; }
@@ -58,14 +59,12 @@ BooleanFlag::ptr BooleanFlag::create(const string& name, const opt_str& doc)
   return ptr(new BooleanFlag(name, doc));
 }
 
-string BooleanFlag::make_doc() const
+FlagDoc BooleanFlag::make_doc() const
 {
-  auto out = name();
-  if (const auto& d = doc()) {
-    out += ' ';
-    out += *d;
-  }
-  return out;
+  return {
+    .left = F("[$]", name()),
+    .right = doc(),
+  };
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -82,21 +81,22 @@ ValueFlag::ValueFlag(
 
 ValueFlag::~ValueFlag() {}
 
-string ValueFlag::make_doc() const
+FlagDoc ValueFlag::make_doc() const
 {
-  auto value_name =
-    _value_name.has_value() ? bee::format("<$>", *_value_name) : "_";
-  auto name_and_value = bee::format("$ $", name(), value_name);
-  if (!is_required()) { name_and_value = bee::format("[$]", name_and_value); }
+  auto value_name = _value_name.has_value() ? F("<$>", *_value_name) : "_";
+  auto name_and_value = F("$ $", name(), value_name);
+  if (!is_required()) { name_and_value = F("[$]", name_and_value); }
 
   string doc_str;
   if (const auto& d = doc()) { doc_str = *d; }
   if (auto def_value = default_str()) {
     if (!doc_str.empty()) { doc_str += ' '; };
-    doc_str += bee::format("[default = $]", *def_value);
+    doc_str += F("[default = $]", *def_value);
   }
-  if (!doc_str.empty()) { doc_str = ": " + doc_str; };
-  return name_and_value + doc_str;
+  return {
+    .left = name_and_value,
+    .right = doc_str,
+  };
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -131,7 +131,7 @@ bee::OrError<int> IntFlag::of_string(const string& value) const
   }
 }
 
-std::string IntFlag::to_string(int value) const { return bee::format(value); }
+std::string IntFlag::to_string(int value) const { return F(value); }
 
 ////////////////////////////////////////////////////////////////////////////////
 // FlagFlag
@@ -148,10 +148,7 @@ bee::OrError<double> FloatFlag::of_string(const string& value) const
   }
 }
 
-std::string FloatFlag::to_string(float value) const
-{
-  return bee::format(value);
-}
+std::string FloatFlag::to_string(float value) const { return F(value); }
 
 } // namespace flags
 

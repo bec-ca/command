@@ -1,9 +1,9 @@
 #pragma once
 
-#include "cmd.hpp"
-
 #include <map>
 #include <string>
+
+#include "cmd.hpp"
 
 namespace command {
 

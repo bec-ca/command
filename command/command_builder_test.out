@@ -14,10 +14,10 @@ args: '--help'
 Accepted flags:
     [<asflag>]
     [<aiflag>]
-    [--str _]
-    [--int _]
-    --bool
-    --help Displays this help
+    [--str _] 
+    [--int _] 
+    [--bool]  
+    [--help]    Displays this help
 exit_code=0
 
 test 3
@@ -49,26 +49,28 @@ exit_code=0
 
 test 6
 args: '--str'
-No arguments for flag --str
+ERROR: No arguments for flag --str
+
 Accepted flags:
     [<asflag>]
     [<aiflag>]
-    [--str _]
-    [--int _]
-    --bool
-    --help Displays this help
+    [--str _] 
+    [--int _] 
+    [--bool]  
+    [--help]    Displays this help
 exit_code=1
 
 test 7
 args: '--int abc'
-Failed to parse flag --int with value 'abc': Not a numerical value
+ERROR: Failed to parse flag --int with value 'abc': Not a numerical value
+
 Accepted flags:
     [<asflag>]
     [<aiflag>]
-    [--str _]
-    [--int _]
-    --bool
-    --help Displays this help
+    [--str _] 
+    [--int _] 
+    [--bool]  
+    [--help]    Displays this help
 exit_code=1
 
 test 8
@@ -100,14 +102,15 @@ exit_code=0
 
 test 11
 args: 'anon anon'
-Failed to parse anon flag with value 'anon': Not a numerical value
+ERROR: Failed to parse anon flag with value 'anon': Not a numerical value
+
 Accepted flags:
     [<asflag>]
     [<aiflag>]
-    [--str _]
-    [--int _]
-    --bool
-    --help Displays this help
+    [--str _] 
+    [--int _] 
+    [--bool]  
+    [--help]    Displays this help
 exit_code=1
 
 test 12
@@ -124,28 +127,30 @@ exit_code=0
 Test: required_args
 test 1
 args: ''
-Flag --filename is required, but not provided
+ERROR: Flag --filename is required, but not provided
+
 Accepted flags:
-    [--str _]
     --filename _
-    --help Displays this help
+    [--str _]   
+    [--help]      Displays this help
 exit_code=1
 ------------------------------------
 test 2
 args: '--help'
 Accepted flags:
-    [--str _]
     --filename _
-    --help Displays this help
+    [--str _]   
+    [--help]      Displays this help
 exit_code=0
 ------------------------------------
 test 3
 args: '--str string'
-Flag --filename is required, but not provided
+ERROR: Flag --filename is required, but not provided
+
 Accepted flags:
-    [--str _]
     --filename _
-    --help Displays this help
+    [--str _]   
+    [--help]      Displays this help
 exit_code=1
 ------------------------------------
 test 4
@@ -169,18 +174,19 @@ exit_code=0
 test 2
 args: '--help'
 Accepted flags:
-    --flag _: [default = foobar]
+    [--flag _]   [default = foobar]
     [--other _]
-    --help Displays this help
+    [--help]     Displays this help
 exit_code=0
 ------------------------------------
 test 3
 args: '--invalid-flag'
-Unknown flag '--invalid-flag'
+ERROR: Unknown flag '--invalid-flag'
+
 Accepted flags:
-    --flag _: [default = foobar]
+    [--flag _]   [default = foobar]
     [--other _]
-    --help Displays this help
+    [--help]     Displays this help
 exit_code=1
 ------------------------------------
 test 4
@@ -203,11 +209,12 @@ exit_code=0
 Test: required_anon
 test 1
 args: ''
-Anon flag <rflag> is required, but not provided
+ERROR: Anon flag <rflag> is required, but not provided
+
 Accepted flags:
-    <rflag>
+    <rflag>  
     [<oflag>]
-    --help Displays this help
+    [--help]   Displays this help
 exit_code=1
 ------------------------------------
 test 2

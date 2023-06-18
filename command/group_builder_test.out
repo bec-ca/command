@@ -2,14 +2,16 @@
 Test: basic
 --------------------------------------------
 test 1
-No arguments given
+ERROR: No arguments given
+
 Available comands:
   help        Prints this help
   subcommand  Sub command
 exit_code=1
 --------------------------------------------
 test 2
-No arguments given
+ERROR: No arguments given
+
 Available comands:
   help        Prints this help
   subcommand  Sub command

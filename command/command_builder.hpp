@@ -1,17 +1,19 @@
 #pragma once
 
-#include "cmd.hpp"
-#include "command_flags.hpp"
-
-#include "bee/error.hpp"
-
 #include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
+#include "cmd.hpp"
+#include "command_flags.hpp"
+
+#include "bee/error.hpp"
+
 namespace command {
+
+using handler_type = std::function<bee::OrError<>(void)>;
 
 template <class T> struct FlagWrapper {
  public:
@@ -31,8 +33,6 @@ template <class T> auto wrap_flag(const std::shared_ptr<T>& flag)
 
 struct CommandBuilder {
  public:
-  using handler_type = std::function<bee::OrError<bee::Unit>(void)>;
-
   CommandBuilder(const std::string& description);
 
   FlagWrapper<BooleanFlag> no_arg(

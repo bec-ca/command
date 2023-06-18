@@ -1,14 +1,20 @@
 #pragma once
 
-#include "bee/error.hpp"
+#include <memory>
 
 #include "flag_spec.hpp"
 
-#include <memory>
+#include "bee/error.hpp"
 
 namespace command {
 
 using opt_str = std::optional<std::string>;
+
+struct FlagDoc {
+ public:
+  std::string left;
+  std::optional<std::string> right;
+};
 
 struct AnonFlag {
  public:
@@ -21,11 +27,11 @@ struct AnonFlag {
 
   virtual ~AnonFlag(){};
 
-  virtual bee::OrError<bee::Unit> parse_value(const std::string& value) = 0;
+  virtual bee::OrError<> parse_value(const std::string& value) = 0;
 
-  virtual bee::OrError<bee::Unit> finish_parsing() const = 0;
+  virtual bee::OrError<> finish_parsing() const = 0;
 
-  std::string make_doc() const;
+  FlagDoc make_doc() const;
 
   bool is_required() const { return _required; }
 
@@ -52,24 +58,24 @@ template <class P, class F> struct AnonFlagBase : public AnonFlag {
     return std::make_shared<F>(spec, value_name, doc);
   }
 
-  virtual bee::OrError<bee::Unit> parse_value(const std::string& value) override
+  virtual bee::OrError<> parse_value(const std::string& value) override
   {
     bail(parsed_value, _spec.of_string(value));
     _value = parsed_value;
-    return bee::unit;
+    return bee::ok();
   }
 
-  virtual bee::OrError<bee::Unit> finish_parsing() const override
+  virtual bee::OrError<> finish_parsing() const override
   {
     if (is_required() && !_value.has_value()) {
       if (auto vn = value_name()) {
-        return bee::Error::format(
+        return bee::Error::fmt(
           "Anon flag <$> is required, but not provided", *vn);
       } else {
-        return bee::Error::format("Anon flag is required, but not provided");
+        return bee::Error::fmt("Anon flag is required, but not provided");
       }
     }
-    return bee::unit;
+    return bee::ok();
   }
 
  protected:
@@ -122,7 +128,7 @@ struct NamedFlag {
 
   const opt_str& doc() const;
 
-  virtual std::string make_doc() const = 0;
+  virtual FlagDoc make_doc() const = 0;
 
  private:
   const std::string _name;
@@ -141,7 +147,7 @@ struct BooleanFlag : public NamedFlag {
 
   const bool& value() const;
 
-  virtual std::string make_doc() const override;
+  virtual FlagDoc make_doc() const override;
 
  private:
   explicit BooleanFlag(const std::string& name, const opt_str& doc);
@@ -161,11 +167,11 @@ struct ValueFlag : public NamedFlag {
 
   virtual ~ValueFlag();
 
-  virtual bee::OrError<bee::Unit> parse_value(const std::string& value) = 0;
+  virtual bee::OrError<> parse_value(const std::string& value) = 0;
 
-  virtual bee::OrError<bee::Unit> finish_parsing() const = 0;
+  virtual bee::OrError<> finish_parsing() const = 0;
 
-  virtual std::string make_doc() const override;
+  virtual FlagDoc make_doc() const override;
 
   bool is_required() const { return _required; }
 
@@ -199,20 +205,20 @@ template <FlagSpec P> struct FlagTemplate : public ValueFlag {
     }
   }
 
-  virtual bee::OrError<bee::Unit> parse_value(const std::string& value) override
+  virtual bee::OrError<> parse_value(const std::string& value) override
   {
     bail(parsed_value, _spec.of_string(value));
     _value.emplace(std::move(parsed_value));
-    return bee::unit;
+    return bee::ok();
   };
 
-  virtual bee::OrError<bee::Unit> finish_parsing() const override
+  virtual bee::OrError<> finish_parsing() const override
   {
     if (is_required() && !value().has_value()) {
-      return bee::Error::format(
+      return bee::Error::fmt(
         "Flag $ is required, but not provided", this->name());
     }
-    return bee::unit;
+    return bee::ok();
   }
 
   virtual opt_str default_str() const override
@@ -252,13 +258,13 @@ template <class P> struct RequiredFlagTemplate : public FlagTemplate<P> {
     return ptr(new RequiredFlagTemplate(name, spec, value_name, doc, def));
   }
 
-  virtual bee::OrError<bee::Unit> finish_parsing() const override
+  virtual bee::OrError<> finish_parsing() const override
   {
     if (!FlagTemplate<P>::value().has_value()) {
-      return bee::Error::format(
+      return bee::Error::fmt(
         "Flag $ is required, but not provided", this->name());
     }
-    return bee::unit;
+    return bee::ok();
   }
 
   const auto& value() const { return *FlagTemplate<P>::value(); }
@@ -270,7 +276,7 @@ template <class P> struct RequiredFlagTemplate : public FlagTemplate<P> {
     const opt_str& value_name,
     const opt_str& doc,
     const std::optional<value_type>& def)
-      : FlagTemplate<P>(name, spec, value_name, doc, def, true)
+      : FlagTemplate<P>(name, spec, value_name, doc, def, !def.has_value())
   {}
 };
 

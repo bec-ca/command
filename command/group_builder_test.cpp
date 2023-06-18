@@ -1,23 +1,21 @@
-#include "group_builder.hpp"
-
 #include "command_builder.hpp"
+#include "group_builder.hpp"
 
 #include "bee/error.hpp"
 #include "bee/format.hpp"
 #include "bee/format_optional.hpp"
 #include "bee/testing.hpp"
 
-using bee::print_line;
 using std::string;
 using std::vector;
 
 namespace command {
 namespace {
 
-bee::OrError<bee::Unit> example_app()
+bee::OrError<> example_app()
 {
-  print_line("Hello world");
-  return bee::unit;
+  P("Hello world");
+  return bee::ok();
 }
 
 void run_cmd(vector<string> args, Cmd& cmd)
@@ -26,7 +24,7 @@ void run_cmd(vector<string> args, Cmd& cmd)
   for (auto& el : args) { argv.push_back(el.data()); }
 
   int output = cmd.main(argv.size(), argv.data());
-  print_line("exit_code=$", output);
+  P("exit_code=$", output);
 }
 
 TEST(basic)
@@ -38,24 +36,24 @@ TEST(basic)
     run_cmd(args, grp);
   };
 
-  print_line("--------------------------------------------");
-  print_line("test 1");
+  P("--------------------------------------------");
+  P("test 1");
   run_test({});
 
-  print_line("--------------------------------------------");
-  print_line("test 2");
+  P("--------------------------------------------");
+  P("test 2");
   run_test({"binary"});
 
-  print_line("--------------------------------------------");
-  print_line("test 2");
+  P("--------------------------------------------");
+  P("test 2");
   run_test({"binary", "subcommand"});
 
-  print_line("--------------------------------------------");
-  print_line("test 3");
+  P("--------------------------------------------");
+  P("test 3");
   run_test({"binary", "nocmd"});
 
-  print_line("--------------------------------------------");
-  print_line("test 4");
+  P("--------------------------------------------");
+  P("test 4");
   run_test({"binary", "help"});
 }
 
