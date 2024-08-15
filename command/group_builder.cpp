@@ -1,78 +1,88 @@
 #include "group_builder.hpp"
 
 #include <string>
-#include <variant>
 
 #include "command_base.hpp"
-#include "command_builder.hpp"
 
+#include "bee/print.hpp"
 #include "bee/string_util.hpp"
 
-using std::deque;
-using std::map;
-using std::max;
-using std::string;
-
 namespace command {
-
 namespace {
 
 ////////////////////////////////////////////////////////////////////////////////
 // CommandGroup
 //
 
-struct CommandGroup : public CommandBase {
+struct CommandGroup final : public CommandBase {
+ private:
+  struct HelpPrinter final : public CommandBase {
+    HelpPrinter(CommandGroup& parent)
+        : CommandBase("Prints this help"), _parent(parent)
+    {}
+    virtual int execute(
+      const bee::LogOutput log_output,
+      const bee::ArrayView<const std::string>) const override
+    {
+      _parent.print_help(log_output);
+      return 0;
+    }
+
+   private:
+    CommandGroup& _parent;
+  };
+
  public:
-  CommandGroup(const string& description, map<string, Cmd>&& handlers)
+  CommandGroup(
+    const std::string_view& description, std::map<std::string, Cmd>&& handlers)
       : CommandBase(description), _handlers(std::move(handlers))
   {
-    _add_cmd("help", CommandBuilder("Prints this help").run([&] {
-      this->print_help();
-      return bee::ok();
-    }));
+    _add_cmd("help", Cmd(std::make_shared<HelpPrinter>(*this)));
   }
 
   virtual ~CommandGroup() {}
 
-  void print_help() const
+  void print_help(const bee::LogOutput log_output) const
   {
-    P("Available comands:");
+    PF(log_output, "Available comands:");
 
     size_t longest_name = 0;
     for (const auto& cmd : _handlers) {
-      longest_name = max(longest_name, cmd.first.size());
+      longest_name = std::max(longest_name, cmd.first.size());
     }
 
     for (const auto& cmd : _handlers) {
-      P("  $  $",
+      PF(
+        log_output,
+        "  $  $",
         bee::right_pad_string(cmd.first, longest_name),
-        cmd.second.base()->description());
+        cmd.second.description());
     }
   }
 
-  virtual int execute(std::deque<std::string>&& args) const override
+  virtual int execute(
+    const bee::LogOutput log_output,
+    const bee::ArrayView<const std::string> args) const override
   {
     if (args.empty()) {
-      P("ERROR: No arguments given\n");
-      print_help();
+      PF(log_output, "ERROR: No arguments given\n");
+      print_help(log_output);
       return 1;
     }
 
-    string cmd = args[0];
-
+    const std::string& cmd = args.front();
     auto it = _handlers.find(cmd);
     if (it == _handlers.end()) {
-      P("Unknown command: $", cmd);
-      print_help();
+      PF(log_output, "Unknown command: $", cmd);
+      print_help(log_output);
       return 1;
     } else {
-      args.pop_front();
-      return it->second.base()->execute(std::move(args));
+      return it->second.execute(log_output, args.slice(1));
     }
   }
 
  private:
-  void _add_cmd(const string& name, const Cmd& command)
+  void _add_cmd(const std::string_view& name, const Cmd& command)
   {
     _handlers.emplace(name, command);
   }
@@ -86,11 +96,12 @@ struct CommandGroup : public CommandBase {
 // GroupBuilder
 //
 
-GroupBuilder::GroupBuilder(const string& description)
+GroupBuilder::GroupBuilder(const std::string_view& description)
     : _description(description)
 {}
 
-GroupBuilder& GroupBuilder::cmd(const std::string& name, const Cmd& command)
+GroupBuilder& GroupBuilder::cmd(
+  const std::string_view& name, const Cmd& command)
 {
   _handlers.emplace(name, std::move(command));
   return *this;

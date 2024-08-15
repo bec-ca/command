@@ -1,11 +1,13 @@
-#include "command_base.hpp"
+#include <stdexcept>
+
 #include "command_builder.hpp"
 
 #include "bee/format_optional.hpp"
 #include "bee/format_vector.hpp"
+#include "bee/or_error.hpp"
+#include "bee/print.hpp"
 #include "bee/testing.hpp"
 
-using std::deque;
 using std::optional;
 using std::string;
 using std::vector;
@@ -15,10 +17,13 @@ namespace {
 
 using namespace command::flags;
 
-void run_command(vector<string> args, const Cmd& cmd)
+void run_command(const vector<string>& args, const Cmd& cmd)
 {
-  deque<string> d(args.begin(), args.end());
-  int output = cmd.base()->execute(std::move(d));
+  static const std::string binary = "binary";
+  vector<const char*> argv = {binary.data()};
+  for (auto& el : args) { argv.push_back(el.data()); }
+
+  int output = cmd.main(argv.size(), argv.data(), bee::LogOutput::StdOut);
   P("exit_code=$", output);
 }
 
@@ -45,11 +50,11 @@ TEST(args)
     P("test $", test_count++);
     P("args: '$'", args);
     auto builder = CommandBuilder("Sub command");
-    auto sflag = builder.optional("--str", string_flag);
-    auto iflag = builder.optional("--int", int_flag);
+    auto sflag = builder.optional("--str", flags::String);
+    auto iflag = builder.optional("--int", flags::Int);
     auto bflag = builder.no_arg("--bool");
-    auto asflag = builder.anon(string_flag, "asflag");
-    auto aiflag = builder.anon(int_flag, "aiflag");
+    auto asflag = builder.anon(flags::String, "asflag");
+    auto aiflag = builder.anon(flags::Int, "aiflag");
     run_command(std::move(args), builder.run([=]() {
       return print_flags(*sflag, *iflag, *bflag, *asflag, *aiflag);
     }));
@@ -78,8 +83,8 @@ TEST(required_args)
     P("test $", test_count++);
     P("args: '$'", args);
     auto builder = CommandBuilder("Sub command");
-    auto oflag = builder.optional("--str", string_flag);
-    auto rflag = builder.required("--filename", string_flag);
+    auto oflag = builder.optional("--str", flags::String);
+    auto rflag = builder.required("--filename", flags::String);
     run_command(std::move(args), builder.run([=]() {
       P("oflag:$ rflag:$", *oflag, *rflag);
       return bee::ok();
@@ -102,8 +107,9 @@ TEST(optional_with_default)
     P("test $", test_count++);
     P("args: '$'", args);
     auto builder = CommandBuilder("Sub command");
-    auto flag1 = builder.optional_with_default("--flag", string_flag, "foobar");
-    auto flag2 = builder.optional("--other", string_flag);
+    auto flag1 =
+      builder.optional_with_default("--flag", flags::String, "foobar");
+    auto flag2 = builder.optional("--other", flags::String);
     run_command(std::move(args), builder.run([=]() {
       P("flag1:$ flag2:$", *flag1, *flag2);
       return bee::ok();
@@ -127,8 +133,8 @@ TEST(required_anon)
     P("test $", test_count++);
     P("args: '$'", args);
     auto builder = CommandBuilder("Sub command");
-    auto rflag = builder.required_anon(string_flag, "rflag");
-    auto oflag = builder.anon(string_flag, "oflag");
+    auto rflag = builder.required_anon(flags::String, "rflag");
+    auto oflag = builder.anon(flags::String, "oflag");
     run_command(std::move(args), builder.run([=]() {
       P("rflag:$ oflag:$", *rflag, *oflag);
       return bee::ok();
@@ -139,6 +145,55 @@ TEST(required_anon)
   run_test({});
   run_test({"foobat.txt"});
   run_test({"foobat.txt", "value"});
+}
+
+TEST(repeated_anon)
+{
+  int test_count = 1;
+
+  auto run_test = [&](vector<string> args) {
+    P("test $", test_count++);
+    P("args: '$'", args);
+    auto builder = CommandBuilder("Sub command");
+    auto aflag = builder.anon(flags::String, "aflag");
+    auto rflag = builder.repeated_anon(flags::String, "rflag");
+    run_command(std::move(args), builder.run([=]() {
+      P("aflag:$ rflag:$ ", *aflag, *rflag);
+      return bee::ok();
+    }));
+    P("------------------------------------");
+  };
+
+  run_test({});
+  run_test({"foobar.txt"});
+  run_test({"foobar.txt", "value"});
+  run_test({"foobar.txt", "value", "other"});
+  run_test({"--", "cmd", "--flag", "--other-flag"});
+}
+
+TEST(exception)
+{
+  auto builder = CommandBuilder("Sub command");
+  run_command({}, builder.run([=]() {
+    raise_error("Failed");
+    return bee::ok();
+  }));
+}
+
+TEST(std_exception)
+{
+  auto run_test = [&]() {
+    auto builder = CommandBuilder("Sub command");
+    run_command({}, builder.run([=]() {
+      throw std::runtime_error("error");
+      return bee::ok();
+    }));
+  };
+
+  P(bee::try_with([&]() -> bee::OrError<> {
+    run_test();
+    return bee::ok();
+  }));
 }
 
 } // namespace

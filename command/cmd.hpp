@@ -2,20 +2,29 @@
 
 #include <memory>
 
+#include "bee/array_view.hpp"
+#include "bee/log_output.hpp"
+
 namespace command {
 
 struct CommandBase;
 
 struct Cmd {
  public:
-  explicit Cmd(const std::shared_ptr<CommandBase>& base) : _base(base) {}
+  explicit Cmd(std::shared_ptr<CommandBase>&& base);
+  ~Cmd();
 
   Cmd(const Cmd& other) = default;
   Cmd(Cmd&& other) = default;
 
-  const std::shared_ptr<CommandBase>& base() const { return _base; }
+  int main(
+    int argc,
+    const char* const* argv,
+    bee::LogOutput log_output = bee::LogOutput::StdErr) const;
 
-  int main(int argc, char* argv[]) const;
+  const std::string& description() const;
+  int execute(
+    bee::LogOutput log_output, bee::ArrayView<const std::string> flags) const;
 
  private:
   std::shared_ptr<CommandBase> _base;

@@ -9,9 +9,9 @@ namespace command {
 
 struct GroupBuilder {
  public:
-  GroupBuilder(const std::string& description);
+  GroupBuilder(const std::string_view& description);
 
-  GroupBuilder& cmd(const std::string& name, const Cmd& command);
+  GroupBuilder& cmd(const std::string_view& name, const Cmd& command);
 
   Cmd build();
 

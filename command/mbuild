@@ -2,21 +2,28 @@ cpp_library:
   name: cmd
   sources: cmd.cpp
   headers: cmd.hpp
-  libs: command_base
+  libs:
+    /bee/array_view
+    /bee/log_output
+    command_base
 
 cpp_library:
   name: command_base
   sources: command_base.cpp
   headers: command_base.hpp
+  libs:
+    /bee/array_view
+    /bee/log_output
 
 cpp_library:
   name: command_builder
   sources: command_builder.cpp
   headers: command_builder.hpp
   libs:
-    /bee/error
+    /bee/file_writer
+    /bee/or_error
+    /bee/print
     /bee/string_util
-    /bee/util
     cmd
     command_base
     command_flags
@@ -27,8 +34,9 @@ cpp_test:
   libs:
     /bee/format_optional
     /bee/format_vector
+    /bee/or_error
+    /bee/print
     /bee/testing
-    command_base
     command_builder
   output: command_builder_test.out
 
@@ -37,7 +45,8 @@ cpp_library:
   sources: command_flags.cpp
   headers: command_flags.hpp
   libs:
-    /bee/error
+    /bee/or_error
+    /bee/parse_string
     flag_spec
 
 cpp_library:
@@ -50,25 +59,23 @@ cpp_library:
 cpp_library:
   name: flag_spec
   headers: flag_spec.hpp
-  libs: /bee/error
+  libs: /bee/or_error
 
 cpp_library:
   name: group_builder
   sources: group_builder.cpp
   headers: group_builder.hpp
   libs:
+    /bee/print
     /bee/string_util
     cmd
     command_base
-    command_builder
 
 cpp_test:
   name: group_builder_test
   sources: group_builder_test.cpp
   libs:
-    /bee/error
-    /bee/format
-    /bee/format_optional
+    /bee/or_error
     /bee/testing
     command_builder
     group_builder

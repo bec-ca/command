@@ -1,20 +1,21 @@
 #pragma once
 
-#include <deque>
-#include <memory>
 #include <string>
+
+#include "bee/array_view.hpp"
+#include "bee/log_output.hpp"
 
 namespace command {
 
 struct CommandBase {
  public:
-  CommandBase(const std::string& description);
+  CommandBase(const std::string_view& description);
 
-  using ptr = std::shared_ptr<CommandBase>;
   virtual ~CommandBase();
 
-  int main(int argc, char* argv[]) const;
-  virtual int execute(std::deque<std::string>&& flags) const = 0;
+  virtual int execute(
+    bee::LogOutput log_output,
+    bee::ArrayView<const std::string> flags) const = 0;
 
   const std::string& description() const;
 
