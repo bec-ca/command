@@ -1,14 +1,16 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
 #include "flag_spec.hpp"
 
-#include "bee/error.hpp"
+#include "bee/or_error.hpp"
 
 namespace command {
 
 using opt_str = std::optional<std::string>;
+using opt_strview = std::optional<std::string_view>;
 
 struct FlagDoc {
  public:
@@ -21,13 +23,19 @@ struct AnonFlag {
   using ptr = std::shared_ptr<AnonFlag>;
 
   explicit AnonFlag(
-    const opt_str& value_name, const opt_str& doc, bool required)
-      : _value_name(value_name), _doc(doc), _required(required)
+    const opt_strview& value_name,
+    const opt_strview& doc,
+    bool required,
+    bool repeated)
+      : _value_name(value_name),
+        _doc(doc),
+        _required(required),
+        _repeated(repeated)
   {}
 
-  virtual ~AnonFlag(){};
+  virtual ~AnonFlag() {};
 
-  virtual bee::OrError<> parse_value(const std::string& value) = 0;
+  virtual bee::OrError<> parse_value(const std::string_view& value) = 0;
 
   virtual bee::OrError<> finish_parsing() const = 0;
 
@@ -35,39 +43,43 @@ struct AnonFlag {
 
   bool is_required() const { return _required; }
 
+  bool is_repeated() const { return _repeated; }
+
   const opt_str& value_name() const;
 
  private:
-  const opt_str _value_name;
-  const opt_str _doc;
+  const std::optional<std::string> _value_name;
+  const std::optional<std::string> _doc;
   const bool _required;
+  const bool _repeated;
 };
 
-template <class P, class F> struct AnonFlagBase : public AnonFlag {
+template <class S, class F> struct AnonFlagBase : public AnonFlag {
  public:
   using ptr = std::shared_ptr<F>;
-  using value_type = typename P::value_type;
+  using value_type = typename S::value_type;
 
   virtual ~AnonFlagBase() {}
 
-  const std::optional<value_type>& value() const { return _value; }
-
   static ptr create(
-    const P& spec, const opt_str& value_name, const opt_str& doc)
+    const S& spec, const opt_strview& value_name, const opt_strview& doc)
   {
     return std::make_shared<F>(spec, value_name, doc);
   }
 
-  virtual bee::OrError<> parse_value(const std::string& value) override
+  virtual bee::OrError<> parse_value(const std::string_view& value) override
   {
+    if (!is_repeated() && !_value.empty()) {
+      return bee::Error("Flag already set");
+    }
     bail(parsed_value, _spec.of_string(value));
-    _value = parsed_value;
+    _value.push_back(std::move(parsed_value));
     return bee::ok();
   }
 
   virtual bee::OrError<> finish_parsing() const override
   {
-    if (is_required() && !_value.has_value()) {
+    if (is_required() && _value.empty()) {
       if (auto vn = value_name()) {
         return bee::Error::fmt(
           "Anon flag <$> is required, but not provided", *vn);
@@ -80,47 +92,79 @@ template <class P, class F> struct AnonFlagBase : public AnonFlag {
 
  protected:
   explicit AnonFlagBase(
-    const P& spec, const opt_str& value_name, const opt_str& doc, bool required)
-      : AnonFlag(value_name, doc, required), _spec(spec)
+    const S& spec,
+    const opt_strview& value_name,
+    const opt_strview& doc,
+    bool required,
+    bool repeated)
+      : AnonFlag(value_name, doc, required, repeated), _spec(spec)
+  {}
+
+  const std::vector<value_type>& value() const { return _value; }
+
+ private:
+  std::vector<value_type> _value;
+  const S _spec;
+};
+
+template <class S>
+struct AnonFlagTemplate : public AnonFlagBase<S, AnonFlagTemplate<S>> {
+ public:
+  using parent = AnonFlagBase<S, AnonFlagTemplate<S>>;
+  using value_type = typename S::value_type;
+
+  const std::optional<value_type>& value() const
+  {
+    if (!_value_opt.has_value()) {
+      const auto& value = parent::value();
+      if (!value.empty()) { _value_opt = value[0]; }
+    }
+    return _value_opt;
+  }
+
+  explicit AnonFlagTemplate(
+    const S& spec, const opt_strview& value_name, const opt_strview& doc)
+      : parent(spec, value_name, doc, false, false)
   {}
 
  private:
-  std::optional<value_type> _value;
-  const P _spec;
+  mutable std::optional<value_type> _value_opt;
 };
 
-template <class P>
-struct AnonFlagTemplate : public AnonFlagBase<P, AnonFlagTemplate<P>> {
+template <class S>
+struct RequiredAnonFlagTemplate
+    : public AnonFlagBase<S, RequiredAnonFlagTemplate<S>> {
  public:
-  using parent = AnonFlagBase<P, AnonFlagTemplate<P>>;
+  using parent = AnonFlagBase<S, RequiredAnonFlagTemplate<S>>;
 
-  virtual ~AnonFlagTemplate() {}
+  const typename S::value_type& value() const { return parent::value()[0]; }
 
-  explicit AnonFlagTemplate(
-    const P& spec, const opt_str& value_name, const opt_str& doc)
-      : parent(spec, value_name, doc, false)
+  explicit RequiredAnonFlagTemplate(
+    const S& spec, const opt_strview& value_name, const opt_strview& doc)
+      : parent(spec, value_name, doc, true, false)
   {}
 };
 
-template <class P>
-struct RequiredAnonFlagTemplate
-    : public AnonFlagBase<P, RequiredAnonFlagTemplate<P>> {
+template <class S>
+struct RepeatedAnonFlagTemplate
+    : public AnonFlagBase<S, RepeatedAnonFlagTemplate<S>> {
  public:
-  using parent = AnonFlagBase<P, RequiredAnonFlagTemplate<P>>;
+  using parent = AnonFlagBase<S, RepeatedAnonFlagTemplate<S>>;
 
-  virtual ~RequiredAnonFlagTemplate() {}
+  const std::vector<typename S::value_type>& value() const
+  {
+    return parent::value();
+  }
 
-  const typename P::value_type& value() const { return *parent::value(); }
-
-  explicit RequiredAnonFlagTemplate(
-    const P& spec, const opt_str& value_name, const opt_str& doc)
-      : parent(spec, value_name, doc, true)
+  explicit RepeatedAnonFlagTemplate(
+    const S& spec, const opt_strview& value_name, const opt_strview& doc)
+      : parent(spec, value_name, doc, false, true)
   {}
 };
 
 struct NamedFlag {
  public:
-  explicit NamedFlag(const std::string& name, const opt_str& doc);
+  explicit NamedFlag(const std::string_view& name, const opt_strview& doc);
 
   virtual ~NamedFlag();
 
@@ -139,7 +183,7 @@ struct BooleanFlag : public NamedFlag {
  public:
   using ptr = std::shared_ptr<BooleanFlag>;
 
-  static ptr create(const std::string& name, const opt_str& doc);
+  static ptr create(const std::string_view& name, const opt_strview& doc);
 
   virtual ~BooleanFlag();
 
@@ -150,7 +194,7 @@ struct BooleanFlag : public NamedFlag {
   virtual FlagDoc make_doc() const override;
 
  private:
-  explicit BooleanFlag(const std::string& name, const opt_str& doc);
+  explicit BooleanFlag(const std::string_view& name, const opt_strview& doc);
 
   bool _value;
 };
@@ -160,14 +204,14 @@ struct ValueFlag : public NamedFlag {
   using ptr = std::shared_ptr<ValueFlag>;
 
   explicit ValueFlag(
-    const std::string& name,
-    const opt_str& value_name,
-    const opt_str& doc,
+    const std::string_view& name,
+    const opt_strview& value_name,
+    const opt_strview& doc,
     bool required);
 
   virtual ~ValueFlag();
 
-  virtual bee::OrError<> parse_value(const std::string& value) = 0;
+  virtual bee::OrError<> parse_value(const std::string_view& value) = 0;
 
   virtual bee::OrError<> finish_parsing() const = 0;
 
@@ -182,16 +226,16 @@ struct ValueFlag : public NamedFlag {
   const bool _required;
 };
 
-template <FlagSpec P> struct FlagTemplate : public ValueFlag {
+template <FlagSpec S> struct FlagTemplate : public ValueFlag {
  public:
-  using value_type = typename P::value_type;
+  using value_type = typename S::value_type;
   using ptr = std::shared_ptr<FlagTemplate>;
 
   static ptr create(
-    const std::string& name,
-    const P& spec,
-    const opt_str& value_name,
-    const opt_str& doc)
+    const std::string_view& name,
+    const S& spec,
+    const opt_strview& value_name,
+    const opt_strview& doc)
   {
     return ptr(new FlagTemplate(name, spec, value_name, doc, std::nullopt));
   }
@@ -205,7 +249,7 @@ template <FlagSpec P> struct FlagTemplate : public ValueFlag {
     }
   }
 
-  virtual bee::OrError<> parse_value(const std::string& value) override
+  virtual bee::OrError<> parse_value(const std::string_view& value) override
   {
     bail(parsed_value, _spec.of_string(value));
     _value.emplace(std::move(parsed_value));
@@ -229,30 +273,30 @@ template <FlagSpec P> struct FlagTemplate : public ValueFlag {
 
  protected:
   explicit FlagTemplate(
-    const std::string& name,
-    const P& spec,
-    const opt_str& value_name,
-    const opt_str& doc,
+    const std::string_view& name,
+    const S& spec,
+    const opt_strview& value_name,
+    const opt_strview& doc,
     const std::optional<value_type>& def,
     bool required = false)
       : ValueFlag(name, value_name, doc, required), _spec(spec), _def(def)
   {}
 
  private:
-  const P _spec;
+  const S _spec;
   const std::optional<value_type> _def;
   std::optional<value_type> _value;
 };
 
-template <class P> struct RequiredFlagTemplate : public FlagTemplate<P> {
+template <class S> struct RequiredFlagTemplate : public FlagTemplate<S> {
  public:
   using ptr = std::shared_ptr<RequiredFlagTemplate>;
-  using value_type = typename P::value_type;
+  using value_type = typename S::value_type;
   static ptr create(
-    const std::string& name,
-    const P& spec,
-    const opt_str& value_name,
-    const opt_str& doc,
+    const std::string_view& name,
+    const S& spec,
+    const opt_strview& value_name,
+    const opt_strview& doc,
     const std::optional<value_type>& def = std::nullopt)
   {
     return ptr(new RequiredFlagTemplate(name, spec, value_name, doc, def));
@@ -260,23 +304,23 @@ template <class P> struct RequiredFlagTemplate : public FlagTemplate<P> {
 
   virtual bee::OrError<> finish_parsing() const override
   {
-    if (!FlagTemplate<P>::value().has_value()) {
+    if (!FlagTemplate<S>::value().has_value()) {
       return bee::Error::fmt(
         "Flag $ is required, but not provided", this->name());
     }
     return bee::ok();
   }
 
-  const auto& value() const { return *FlagTemplate<P>::value(); }
+  const auto& value() const { return *FlagTemplate<S>::value(); }
 
  private:
   explicit RequiredFlagTemplate(
-    const std::string& name,
-    const P& spec,
-    const opt_str& value_name,
-    const opt_str& doc,
+    const std::string_view& name,
+    const S& spec,
+    const opt_strview& value_name,
+    const opt_strview& doc,
     const std::optional<value_type>& def)
-      : FlagTemplate<P>(name, spec, value_name, doc, def, !def.has_value())
+      : FlagTemplate<S>(name, spec, value_name, doc, def, !def.has_value())
   {}
 };
 
@@ -284,27 +328,27 @@ namespace flags {
 
 struct StringFlag {
   using value_type = std::string;
-  bee::OrError<value_type> of_string(const std::string& value) const;
-  std::string to_string(const std::string& value) const;
+  bee::OrError<value_type> of_string(const std::string_view& value) const;
+  std::string to_string(const std::string_view& value) const;
 };
 
-constexpr StringFlag string_flag;
+constexpr StringFlag String;
 
 struct IntFlag {
   using value_type = int;
-  bee::OrError<value_type> of_string(const std::string& value) const;
+  bee::OrError<value_type> of_string(const std::string_view& value) const;
   std::string to_string(int value) const;
 };
 
-constexpr IntFlag int_flag;
+constexpr IntFlag Int;
 
 struct FloatFlag {
   using value_type = double;
-  bee::OrError<value_type> of_string(const std::string& value) const;
+  bee::OrError<value_type> of_string(const std::string_view& value) const;
   std::string to_string(float value) const;
 };
 
-constexpr FloatFlag float_flag;
+constexpr FloatFlag Float;
 
 } // namespace flags
 

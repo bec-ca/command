@@ -1,19 +1,19 @@
 #include "command_builder.hpp"
 
-#include <deque>
-#include <stdexcept>
+#include <algorithm>
+#include <exception>
 #include <type_traits>
 #include <vector>
 
 #include "command_base.hpp"
+#include "command_flags.hpp"
 
-#include "bee/error.hpp"
+#include "bee/file_writer.hpp"
+#include "bee/or_error.hpp"
+#include "bee/print.hpp"
 #include "bee/string_util.hpp"
-#include "bee/util.hpp"
-#include "command/command_flags.hpp"
 
 using std::decay_t;
-using std::deque;
 using std::is_same_v;
 using std::string;
 using std::vector;
@@ -56,12 +56,17 @@ bee::OrError<Flag> find_flag(const vector<Flag>& flags, const string& name)
 bee::OrError<> parse_args(
   const vector<Flag>& named_flags,
   const vector<AnonFlag::ptr>& anon_flags,
-  const deque<string>& args)
+  const bee::ArrayView<const std::string> args)
 {
   size_t anon_flag_index = 0;
+  bool flag_escaped = false;
   for (size_t i = 0; i < args.size();) {
     const string& arg = args.at(i++);
-    if (arg.front() == '-') {
+    if (arg.front() == '-' && !flag_escaped) {
+      if (arg == "--") {
+        flag_escaped = true;
+        continue;
+      }
       bail(flag, find_flag(named_flags, arg));
       bail_unit(visit(
         [&](auto flag) -> bee::OrError<> {
@@ -84,20 +89,24 @@ bee::OrError<> parse_args(
             flag->set();
             return bee::ok();
           } else {
-            static_assert(bee::always_false_v<T> && "visit is not exhaustive");
+            static_assert(bee::always_false<T> && "visit is not exhaustive");
           }
         },
         flag));
     } else {
+      // Anon arg
       if (anon_flag_index >= anon_flags.size()) {
         return bee::Error::fmt("Unexpected anonymous argument '$'", arg);
       }
-      auto err = anon_flags[anon_flag_index]->parse_value(arg);
+      auto&& flag = anon_flags[anon_flag_index];
+      auto err = flag->parse_value(arg);
       if (err.is_error()) {
         return bee::Error::fmt(
           "Failed to parse anon flag with value '$': $", arg, err.error());
       }
-      anon_flag_index++;
+      // TODO: Need to validate that there are no other anon flags after a
+      // repeated anon one.
+      if (!flag->is_repeated()) { anon_flag_index++; }
     }
   }
   for (const auto& flag : named_flags) {
@@ -109,7 +118,7 @@ bee::OrError<> parse_args(
         } else if constexpr (is_same_v<T, BooleanFlag::ptr>) {
           return bee::ok();
         } else {
-          static_assert(bee::always_false_v<T> && "visit is not exhaustive");
+          static_assert(bee::always_false<T> && "visit is not exhaustive");
         }
       },
       flag));
@@ -152,7 +161,7 @@ struct Command : public CommandBase {
   Command(const Command& other) = delete;
   Command& operator=(const Command& other) = delete;
 
-  static ptr make(
+  static std::shared_ptr<Command> make(
     const std::string& description,
     const std::vector<Flag>& flags,
     const std::vector<AnonFlag::ptr>& anon_flags,
@@ -165,36 +174,38 @@ struct Command : public CommandBase {
 
   const std::string& description() const;
 
-  virtual int execute(std::deque<std::string>&& args) const override
+  virtual int execute(
+    const bee::LogOutput log_output,
+    const bee::ArrayView<const std::string> args) const override
   {
     {
       auto err = parse_args(_flags, _anon_flags, args);
       if (_show_help->value()) {
-        print_help();
+        print_help(log_output);
         return 0;
       }
 
       if (err.is_error()) {
-        P("ERROR: $\n", err.error());
-        print_help();
+        PF(log_output, "ERROR: $\n", err.error());
+        print_help(log_output);
         return 1;
       }
     }
 
-    auto err = _handler();
+    auto err = _run();
     if (err.is_error()) {
-      P("Application exited with error:");
-      P(err.error().full_msg());
+      PF(log_output, "Application exited with error:");
+      PF(log_output, err.error().full_msg());
       return 1;
     }
 
     return 0;
   }
 
-  void print_help() const
+  void print_help(const bee::LogOutput log_output) const
   {
     vector<FlagDoc> docs;
-    P("Accepted flags:");
+    PF(log_output, "Accepted flags:");
     for (const auto& flag : _anon_flags) { docs.push_back(flag->make_doc()); }
     for (const auto& flag : _flags) { docs.push_back(make_doc(flag)); }
 
@@ -209,11 +220,24 @@ struct Command : public CommandBase {
         line += "  ";
         line += *doc.right;
       }
-      P(line);
+      PF(log_output, line);
     }
   }
 
  private:
+  bee::OrError<> _run() const
+  {
+    try {
+      return _handler();
+    } catch (const bee::Exn& err) {
+      std::ignore = bee::FileWriter::stdout().flush();
+      return bee::Error(err);
+    } catch (const std::exception& err) {
+      std::ignore = bee::FileWriter::stdout().flush();
+      throw;
+    }
+  }
+
   handler_type _handler;
   std::vector<Flag> _flags;
   std::vector<AnonFlag::ptr> _anon_flags;
@@ -226,12 +250,12 @@ struct Command : public CommandBase {
 // CommandBuilder
 //
 
-CommandBuilder::CommandBuilder(const string& description)
+CommandBuilder::CommandBuilder(const std::string_view& description)
     : _description(description)
 {}
 
 FlagWrapper<BooleanFlag> CommandBuilder::no_arg(
-  const std::string& name, const opt_str& doc)
+  const std::string_view& name, const opt_str& doc)
 {
   auto flag = BooleanFlag::create(name, doc);
   _flags.push_back(flag);

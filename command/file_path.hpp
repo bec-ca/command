@@ -7,7 +7,7 @@
 namespace command {
 namespace flags {
 
-constexpr auto file_path = create_flag_spec<bee::FilePath>();
+constexpr auto FilePath = create_flag_spec<bee::FilePath>();
 
 }
 } // namespace command

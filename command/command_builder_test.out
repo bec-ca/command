@@ -2,11 +2,11 @@
 Test: args
 test 1
 args: ''
-()
-()
+<nullopt>
+<nullopt>
 false
-()
-()
+<nullopt>
+<nullopt>
 exit_code=0
 
 test 2
@@ -22,29 +22,29 @@ exit_code=0
 
 test 3
 args: '--str string'
-(string)
-()
+string
+<nullopt>
 false
-()
-()
+<nullopt>
+<nullopt>
 exit_code=0
 
 test 4
 args: '--int 123'
-()
-(123)
+<nullopt>
+123
 false
-()
-()
+<nullopt>
+<nullopt>
 exit_code=0
 
 test 5
 args: '--bool'
-()
-()
+<nullopt>
+<nullopt>
 true
-()
-()
+<nullopt>
+<nullopt>
 exit_code=0
 
 test 6
@@ -62,7 +62,7 @@ exit_code=1
 
 test 7
 args: '--int abc'
-ERROR: Failed to parse flag --int with value 'abc': Not a numerical value
+ERROR: Failed to parse flag --int with value 'abc': Malformed number
 
 Accepted flags:
     [<asflag>]
@@ -75,34 +75,38 @@ exit_code=1
 
 test 8
 args: '--int 123a'
-()
-(123)
-false
-()
-()
-exit_code=0
+ERROR: Failed to parse flag --int with value '123a': Malformed number
+
+Accepted flags:
+    [<asflag>]
+    [<aiflag>]
+    [--str _] 
+    [--int _] 
+    [--bool]  
+    [--help]    Displays this help
+exit_code=1
 
 test 9
 args: '--bool --int 123 --str yo'
-(yo)
-(123)
+yo
+123
 true
-()
-()
+<nullopt>
+<nullopt>
 exit_code=0
 
 test 10
 args: 'anon'
-()
-()
+<nullopt>
+<nullopt>
 false
-(anon)
-()
+anon
+<nullopt>
 exit_code=0
 
 test 11
 args: 'anon anon'
-ERROR: Failed to parse anon flag with value 'anon': Not a numerical value
+ERROR: Failed to parse anon flag with value 'anon': Malformed number
 
 Accepted flags:
     [<asflag>]
@@ -115,11 +119,11 @@ exit_code=1
 
 test 12
 args: 'anon 123'
-()
-()
+<nullopt>
+<nullopt>
 false
-(anon)
-(123)
+anon
+123
 exit_code=0
 
 
@@ -155,12 +159,12 @@ exit_code=1
 ------------------------------------
 test 4
 args: '--filename foobat.txt'
-oflag:() rflag:foobat.txt
+oflag:<nullopt> rflag:foobat.txt
 exit_code=0
 ------------------------------------
 test 5
 args: '--filename foobat.txt --str value'
-oflag:(value) rflag:foobat.txt
+oflag:value rflag:foobat.txt
 exit_code=0
 ------------------------------------
 
@@ -168,7 +172,7 @@ exit_code=0
 Test: optional_with_default
 test 1
 args: ''
-flag1:foobar flag2:()
+flag1:foobar flag2:<nullopt>
 exit_code=0
 ------------------------------------
 test 2
@@ -191,17 +195,17 @@ exit_code=1
 ------------------------------------
 test 4
 args: '--flag foo'
-flag1:foo flag2:()
+flag1:foo flag2:<nullopt>
 exit_code=0
 ------------------------------------
 test 5
 args: '--other bar'
-flag1:foobar flag2:(bar)
+flag1:foobar flag2:bar
 exit_code=0
 ------------------------------------
 test 6
 args: '--flag bar --other foo'
-flag1:bar flag2:(foo)
+flag1:bar flag2:foo
 exit_code=0
 ------------------------------------
 
@@ -219,12 +223,51 @@ exit_code=1
 ------------------------------------
 test 2
 args: 'foobat.txt'
-rflag:foobat.txt oflag:()
+rflag:foobat.txt oflag:<nullopt>
 exit_code=0
 ------------------------------------
 test 3
 args: 'foobat.txt value'
-rflag:foobat.txt oflag:(value)
+rflag:foobat.txt oflag:value
 exit_code=0
 ------------------------------------
+
+================================================================================
+Test: repeated_anon
+test 1
+args: ''
+aflag:<nullopt> rflag: 
+exit_code=0
+------------------------------------
+test 2
+args: 'foobar.txt'
+aflag:foobar.txt rflag: 
+exit_code=0
+------------------------------------
+test 3
+args: 'foobar.txt value'
+aflag:foobar.txt rflag:value 
+exit_code=0
+------------------------------------
+test 4
+args: 'foobar.txt value other'
+aflag:foobar.txt rflag:value other 
+exit_code=0
+------------------------------------
+test 5
+args: '-- cmd --flag --other-flag'
+aflag:cmd rflag:--flag --other-flag 
+exit_code=0
+------------------------------------
+
+================================================================================
+Test: exception
+Application exited with error:
+filename.cpp:10:Exn raised: filename.cpp:10:Failed
+
+exit_code=1
+
+================================================================================
+Test: std_exception
+Error(Exn raised: error)
 

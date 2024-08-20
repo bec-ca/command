@@ -9,7 +9,7 @@
 #include "cmd.hpp"
 #include "command_flags.hpp"
 
-#include "bee/error.hpp"
+#include "bee/or_error.hpp"
 
 namespace command {
 
@@ -33,14 +33,14 @@ template <class T> auto wrap_flag(const std::shared_ptr<T>& flag)
 
 struct CommandBuilder {
  public:
-  CommandBuilder(const std::string& description);
+  CommandBuilder(const std::string_view& description);
 
   FlagWrapper<BooleanFlag> no_arg(
-    const std::string& name, const opt_str& doc = std::nullopt);
+    const std::string_view& name, const opt_str& doc = std::nullopt);
 
   template <class S>
   auto optional(
-    const std::string& name,
+    const std::string_view& name,
     const S& spec,
     const opt_str& value_name = std::nullopt,
     const opt_str& doc = std::nullopt)
@@ -52,7 +52,7 @@ struct CommandBuilder {
 
   template <class S>
   auto optional_with_default(
-    const std::string& name,
+    const std::string_view& name,
     const S& spec,
     const typename S::value_type& def,
     const opt_str& value_name = std::nullopt,
@@ -66,7 +66,7 @@ struct CommandBuilder {
 
   template <class S>
   auto required(
-    const std::string& name,
+    const std::string_view& name,
     const S& spec,
     const opt_str& value_name = std::nullopt,
     const opt_str& doc = std::nullopt)
@@ -90,6 +90,15 @@ struct CommandBuilder {
     const S& spec, const opt_str& value_name, const opt_str& doc = std::nullopt)
   {
     auto flag = RequiredAnonFlagTemplate<S>::create(spec, value_name, doc);
+    _anon_flags.push_back(flag);
+    return wrap_flag(flag);
+  }
+
+  template <class S>
+  auto repeated_anon(
+    const S& spec, const opt_str& value_name, const opt_str& doc = std::nullopt)
+  {
+    auto flag = RepeatedAnonFlagTemplate<S>::create(spec, value_name, doc);
     _anon_flags.push_back(flag);
     return wrap_flag(flag);
   }

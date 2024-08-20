@@ -1,9 +1,7 @@
 #include "command_builder.hpp"
 #include "group_builder.hpp"
 
-#include "bee/error.hpp"
-#include "bee/format.hpp"
-#include "bee/format_optional.hpp"
+#include "bee/or_error.hpp"
 #include "bee/testing.hpp"
 
 using std::string;
@@ -18,12 +16,12 @@ bee::OrError<> example_app()
   return bee::ok();
 }
 
-void run_cmd(vector<string> args, Cmd& cmd)
+void run_cmd(const vector<string>& args, Cmd& cmd)
 {
-  vector<char*> argv;
+  vector<const char*> argv;
   for (auto& el : args) { argv.push_back(el.data()); }
 
-  int output = cmd.main(argv.size(), argv.data());
+  int output = cmd.main(argv.size(), argv.data(), bee::LogOutput::StdOut);
   P("exit_code=$", output);
 }
 

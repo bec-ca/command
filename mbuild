@@ -1,9 +1,14 @@
+external_package:
+  name: bee
+  url: https://github.com/bec-ca/bee/archive/refs/tags/v0.0.2.tar.gz
+
 profile:
   name: dev
   cpp_flags:
     -ggdb3
     -Og
-    -std=c++20
+    -march=native
+    -std=c++23
     -Wall
     -Wextra
     -D_GLIBCXX_DEBUG
@@ -15,7 +20,7 @@ profile:
 profile:
   name: release
   cpp_flags:
-    -std=c++20
+    -std=c++23
     -Wall
     -Wextra
     -O3
@@ -25,8 +30,4 @@ profile:
   ld_flags:
     -pthread
     -lpthread
-
-external_package:
-  name: bee
-  url: https://github.com/bec-ca/bee/archive/refs/tags/v2.2.1.tar.gz
 
