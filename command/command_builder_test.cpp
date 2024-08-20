@@ -4,6 +4,7 @@
 
 #include "bee/format_optional.hpp"
 #include "bee/format_vector.hpp"
+#include "bee/location.hpp"
 #include "bee/or_error.hpp"
 #include "bee/print.hpp"
 #include "bee/testing.hpp"
@@ -175,7 +176,7 @@ TEST(exception)
 {
   auto builder = CommandBuilder("Sub command");
   run_command({}, builder.run([=]() {
-    raise_error("Failed");
+    throw bee::Exn(bee::Location("filename.cpp", 10), "Failed");
     return bee::ok();
   }));
 }

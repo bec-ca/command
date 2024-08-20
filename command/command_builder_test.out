@@ -263,7 +263,7 @@ exit_code=0
 ================================================================================
 Test: exception
 Application exited with error:
-command/command_builder_test.cpp:178:Exn raised: command/command_builder_test.cpp:178:Failed
+filename.cpp:10:Exn raised: filename.cpp:10:Failed
 
 exit_code=1
 
